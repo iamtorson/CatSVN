@@ -1,0 +1,69 @@
+name: Release
+
+# Publishing a tag builds the macOS bundle and turns it into a GitHub release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install front-end dependencies
+        run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: CatSVN ${{ github.ref_name }}
+          releaseDraft: false
+          prerelease: false
+          releaseBody: |
+            CatSVN is a desktop Subversion client that only downloads the files you actually open.
+
+            ### What's in this release
+
+            - Sparse working copies: connect with `--depth empty`, then pull single files on demand
+            - Browse the remote tree without checking anything out
+            - Check a folder out at files-only / one level / full / custom depth, and drop it again with `--set-depth exclude`
+            - Edit, diff, update, revert and commit a single file
+            - Upload files or folders (or drag them from Finder) and commit them as one revision
+            - Repository, folder and file history with a diff against HEAD
+            - English and 简体中文 interface, light and dark appearance, native macOS vibrancy
+
+            ### Requirements
+
+            - macOS 10.15 or newer
+            - A Subversion command line client, 1.8 or newer (`brew install subversion`)
+
+            ### Install
+
+            1. Download the `.dmg` below and open it
+            2. Drag **CatSVN** into *Applications*
+
+            > **First launch:** this build is ad-hoc signed and not notarized, so macOS will refuse to open it with a message about not being able to check it for malicious software. Right-click the app, choose **Open**, and confirm. Alternatively:
+            >
+            > ```sh
+            > xattr -dr com.apple.quarantine /Applications/CatSVN.app
+            > ```
+
+            ### Notes
+
+            - This DMG is an Apple Silicon (`arm64`) build. An Intel build is not provided yet.
+            - See [CHANGELOG.md](https://github.com/iamtorson/CatSVN/blob/main/CHANGELOG.md) for the detailed notes.
