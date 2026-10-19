@@ -35,6 +35,7 @@ space.
 
 **Browsing**
 
+- Save several repositories and switch between them with one click
 - Lazy remote browsing straight from `svn list` — no checkout needed to look around
 - Filter the current folder, and move through rows with the arrow keys
 - Back and forward through visited folders with the toolbar, the mouse side

@@ -157,6 +157,43 @@ async function runCommand<T>(command: string, args: Record<string, unknown>): Pr
 const SIDEBAR_DEFAULT_WIDTH = 420;
 const SIDEBAR_MIN_WIDTH = 300;
 const SIDEBAR_MAX_WIDTH = 680;
+const PROFILE_LIMIT = 20;
+const PROFILE_KEY = "svn-lens:profiles";
+
+type RepositoryProfile = {
+  rootUrl: string;
+  workdir: string;
+  username: string;
+  lastUsed: number;
+};
+
+function readProfiles(): RepositoryProfile[] {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item): item is RepositoryProfile =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof (item as RepositoryProfile).rootUrl === "string",
+      )
+      .map((item) => ({
+        rootUrl: item.rootUrl,
+        workdir: typeof item.workdir === "string" ? item.workdir : "",
+        username: typeof item.username === "string" ? item.username : "",
+        lastUsed: typeof item.lastUsed === "number" ? item.lastUsed : 0,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function writeProfiles(profiles: RepositoryProfile[]) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles.slice(0, PROFILE_LIMIT)));
+}
 
 type SegmentOption<T extends string> = {
   value: T;
@@ -233,6 +270,7 @@ export default function App() {
   const [autoLogin, setAutoLogin] = useState(
     () => localStorage.getItem("svn-lens:auto-login") === "1",
   );
+  const [profiles, setProfiles] = useState<RepositoryProfile[]>(readProfiles);
   const [repo, setRepo] = useState<RepoInfo | null>(null);
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<SvnEntry[]>([]);
@@ -834,6 +872,21 @@ export default function App() {
       localStorage.setItem("svn-lens:url", info.root_url);
       localStorage.setItem("svn-lens:workdir", info.workdir);
       localStorage.setItem("svn-lens:username", targetUsername);
+      // Keep a small list of repositories so switching between them does not
+      // mean retyping the URL and workspace every time.
+      setProfiles((current) => {
+        const next = [
+          {
+            rootUrl: info.root_url,
+            workdir: info.workdir,
+            username: targetUsername,
+            lastUsed: Date.now(),
+          },
+          ...current.filter((profile) => profile.rootUrl !== info.root_url),
+        ].slice(0, PROFILE_LIMIT);
+        writeProfiles(next);
+        return next;
+      });
       setWorkdir(info.workdir);
       setRepo(info);
       setRootUrl(info.root_url);
@@ -886,6 +939,29 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function openProfile(profile: RepositoryProfile) {
+    setRootUrl(profile.rootUrl);
+    setWorkdir(profile.workdir);
+    setUsername(profile.username);
+    await connectRepository(undefined, {
+      rootUrl: profile.rootUrl,
+      workdir: profile.workdir,
+      username: profile.username,
+      remember: true,
+      automatic: true,
+    });
+  }
+
+  function removeProfile(rootUrlToRemove: string) {
+    setProfiles((current) => {
+      const next = current.filter(
+        (profile) => profile.rootUrl !== rootUrlToRemove,
+      );
+      writeProfiles(next);
+      return next;
+    });
   }
 
   async function disconnectRepository() {
@@ -1301,7 +1377,38 @@ export default function App() {
 
       {!repo ? (
         <main className="connect-layout">
-          <form className="connect-panel" onSubmit={connectRepository}>
+          <div className="connect-stack">
+            {profiles.length > 0 && (
+              <section className="profile-panel">
+                <h2>{t.savedRepositories}</h2>
+                <ul className="profile-list">
+                  {profiles.map((profile) => (
+                    <li className="profile-item" key={profile.rootUrl}>
+                      <button
+                        className="profile-open"
+                        disabled={loading}
+                        onClick={() => void openProfile(profile)}
+                        type="button"
+                      >
+                        <span className="profile-url">{profile.rootUrl}</span>
+                        <span className="profile-workdir">{profile.workdir}</span>
+                      </button>
+                      <button
+                        className="icon-button"
+                        disabled={loading}
+                        onClick={() => removeProfile(profile.rootUrl)}
+                        title={t.removeFromList}
+                        type="button"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <form className="connect-panel" onSubmit={connectRepository}>
             <h1>{t.openRepository}</h1>
             <p>{t.intro}</p>
 
@@ -1379,8 +1486,9 @@ export default function App() {
               {t.connect}
             </button>
 
-            {error && <div className="status error">{error}</div>}
-          </form>
+              {error && <div className="status error">{error}</div>}
+            </form>
+          </div>
         </main>
       ) : (
         <main

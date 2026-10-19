@@ -10,6 +10,8 @@ const en = {
   connectHint: "Connect a repository to browse without a full checkout",
   language: "Language",
   openRepository: "Open a repository",
+  savedRepositories: "Saved repositories",
+  removeFromList: "Remove from list",
   intro:
     "CatSVN creates an empty-depth working copy and fetches individual files only when you open them for editing.",
   repositoryUrl: "Repository URL",
@@ -133,6 +135,8 @@ const zh: typeof en = {
   connectHint: "连接仓库即可浏览，无需完整检出",
   language: "语言",
   openRepository: "打开仓库",
+  savedRepositories: "已保存的仓库",
+  removeFromList: "从列表移除",
   intro:
     "CatSVN 会创建空深度工作副本，仅在打开文件时按需拉取具体内容。",
   repositoryUrl: "仓库地址",
