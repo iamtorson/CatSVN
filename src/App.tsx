@@ -12,6 +12,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
+import { PreviewPane } from "./previewers";
 import {
   ArrowLeft,
   ArrowRight,
@@ -62,6 +63,7 @@ type FileContent = {
   content: string;
   size: number;
   is_binary: boolean;
+  data_base64?: string | null;
 };
 
 type SavedFile = {
@@ -1708,23 +1710,39 @@ export default function App() {
 
                 <div className="file-body" key={tab}>
                   {tab === "preview" && (
-                    <pre className="file-view" onScroll={trackScroll("file")}>
-                      {preview.content || t.noTextContent}
-                    </pre>
-                  )}
-
-                  {tab === "edit" && (
-                    <textarea
-                      className="file-editor"
-                      onChange={(event) => {
-                        setDraft(event.target.value);
-                        setDirty(true);
-                      }}
+                    <PreviewPane
+                      file={preview}
                       onScroll={trackScroll("file")}
-                      spellCheck={false}
-                      value={draft ?? ""}
+                      t={t}
                     />
                   )}
+
+                  {tab === "edit" &&
+                    (preview.is_binary ? (
+                      <div className="file-view binary-edit">
+                        <p>{t.binaryEditHint}</p>
+                        <button
+                          className="toolbar-button"
+                          disabled={loading || !selected?.checked_out}
+                          onClick={() => void openLocalFile()}
+                          type="button"
+                        >
+                          <ExternalLink size={15} />
+                          {t.openInDefaultApp}
+                        </button>
+                      </div>
+                    ) : (
+                      <textarea
+                        className="file-editor"
+                        onChange={(event) => {
+                          setDraft(event.target.value);
+                          setDirty(true);
+                        }}
+                        onScroll={trackScroll("file")}
+                        spellCheck={false}
+                        value={draft ?? ""}
+                      />
+                    ))}
 
                   {tab === "diff" && (
                     <pre className="file-view diff-view" onScroll={trackScroll("file")}>

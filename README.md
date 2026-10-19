@@ -54,6 +54,10 @@ space.
 **Editing and committing**
 
 - Text editing with a unified diff before you commit
+- Rendered previews for Markdown (GFM tables, code, links open in the browser),
+  images, PDF pages, Word `.docx` files, and Excel/CSV sheets with tab switching
+- Drag-and-drop uploads are previewed from the repository without ever being
+  written to disk
 - Update, revert, and commit the current file
 - Upload files or folders into the current remote directory, then commit them
   in one atomic revision

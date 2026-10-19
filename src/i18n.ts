@@ -62,6 +62,13 @@ const en = {
   openInDefaultApp: "Open in the default app",
   binaryFetched:
     "This is a binary file, so it cannot be edited here. It has been fetched; use \"Open in the default app\" to edit it.",
+  binaryEditHint:
+    "This format cannot be edited inside CatSVN. Fetch it and open it in its default app instead.",
+  renderingPreview: "Rendering preview…",
+  previewUnavailable:
+    "This file cannot be previewed here. Use \"Open in the default app\" to view it.",
+  sheetTruncated: (rows: number, columns: number) =>
+    `Showing the first ${rows} rows and ${columns} columns.`,
   resizeRepository: "Drag to resize the repository panel; double-click to reset",
   preview: "Preview",
   edit: "Edit",
@@ -178,6 +185,12 @@ const zh: typeof en = {
   openInDefaultApp: "用默认程序打开",
   binaryFetched:
     "这是二进制文件，无法在应用内编辑。已拉取到本地，可用「用默认程序打开」进行编辑。",
+  binaryEditHint:
+    "该格式不支持在 CatSVN 内编辑，请拉取后用默认程序打开编辑。",
+  renderingPreview: "正在渲染预览…",
+  previewUnavailable: "该文件无法在应用内预览，请用「用默认程序打开」查看。",
+  sheetTruncated: (rows: number, columns: number) =>
+    `仅显示前 ${rows} 行、前 ${columns} 列。`,
   resizeRepository: "拖动调整仓库面板宽度；双击恢复默认",
   preview: "预览",
   edit: "编辑",

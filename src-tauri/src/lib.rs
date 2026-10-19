@@ -11,8 +11,14 @@ use roxmltree::Document;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+
 const PREVIEW_LIMIT: u64 = 2 * 1024 * 1024;
-const EDIT_LIMIT: u64 = 8 * 1024 * 1024;
+// Rich previewers (images, PDF, Office documents) need the bytes themselves, so
+// they get a larger budget than plain text. This is also the edit limit, since
+// opening such a file in its default app has to fetch it first.
+const RICH_PREVIEW_LIMIT: u64 = 16 * 1024 * 1024;
+const EDIT_LIMIT: u64 = RICH_PREVIEW_LIMIT;
 const HISTORY_LIMIT: u32 = 200;
 const HISTORY_DIFF_LIMIT: usize = 2 * 1024 * 1024;
 
@@ -65,6 +71,9 @@ struct FileContent {
     content: String,
     size: u64,
     is_binary: bool,
+    /// Binary payload handed to the rich previewers as base64. Text files use
+    /// `content` instead, so this stays empty for them.
+    data_base64: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -266,14 +275,23 @@ async fn preview_file(
     validate_relative_path(&path)?;
     let remote = remote_url(&session.root_url, &path)?;
     let size = remote_file_size(&remote, &session.credentials)?;
-    if size > PREVIEW_LIMIT {
+    if size > RICH_PREVIEW_LIMIT {
         return Err(format!(
             "File is {} bytes; preview is limited to {} bytes",
-            size, PREVIEW_LIMIT
+            size, RICH_PREVIEW_LIMIT
         ));
     }
 
     let bytes = run_svn_session(&session, &["cat", "--non-interactive", &remote])?;
+    // Binary files are handed to the rich previewers; text stays on the smaller
+    // budget so a huge log file cannot stall the UI.
+    if !bytes.contains(&0) && !has_rich_payload(&path) && bytes.len() as u64 > PREVIEW_LIMIT {
+        return Err(format!(
+            "File is {} bytes; text preview is limited to {} bytes",
+            bytes.len(),
+            PREVIEW_LIMIT
+        ));
+    }
     Ok(file_content(path, bytes))
 }
 
@@ -1615,6 +1633,15 @@ fn looks_binary(path: &Path) -> Result<bool, String> {
 
 fn file_content(path: String, bytes: Vec<u8>) -> FileContent {
     let is_binary = bytes.contains(&0);
+    // Not every binary format is full of NUL bytes (a compressed PDF, for
+    // example), so the extension decides too. Rich previewers need the raw
+    // bytes even when the payload happens to look like text.
+    let needs_bytes = is_binary || has_rich_payload(&path);
+    let data_base64 = if needs_bytes && bytes.len() as u64 <= RICH_PREVIEW_LIMIT {
+        Some(BASE64.encode(&bytes))
+    } else {
+        None
+    };
     FileContent {
         size: bytes.len() as u64,
         content: if is_binary {
@@ -1623,8 +1650,21 @@ fn file_content(path: String, bytes: Vec<u8>) -> FileContent {
             decode_text(&bytes)
         },
         is_binary,
+        data_base64,
         path,
     }
+}
+
+fn has_rich_payload(path: &str) -> bool {
+    const EXTENSIONS: &[&str] = &[
+        "avif", "bmp", "docx", "gif", "ico", "jpeg", "jpg", "ods", "pdf", "png", "svg", "webp",
+        "xls", "xlsm", "xlsx",
+    ];
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str()))
+        .unwrap_or(false)
 }
 
 fn decode_text(bytes: &[u8]) -> String {
