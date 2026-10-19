@@ -458,6 +458,10 @@ textarea {
     /* A glass checkbox instead of the stock macOS switch-box. */
     appearance: none;
     -webkit-appearance: none;
+    /* `.connect-panel input` adds 11px of horizontal padding for text fields;
+       on a fixed-size checkbox that inflates the box into a rectangle. */
+    flex: 0 0 auto;
+    padding: 0;
     display: grid;
     place-items: center;
     width: 17px;
