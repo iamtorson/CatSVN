@@ -443,7 +443,10 @@ textarea {
     margin-bottom: 0;
 }
 
-.remember-password {
+/* `label.remember-password` (not just the class) so it outranks
+   `.connect-panel label { display: block }` and keeps the box inline with
+   its text. */
+label.remember-password {
     display: flex;
     align-items: center;
     gap: 9px;
