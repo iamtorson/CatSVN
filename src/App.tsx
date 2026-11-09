@@ -709,7 +709,7 @@ export default function App() {
         levels: checkoutLevels,
       });
       setCheckoutOpen(false);
-      await navigateTo(path, "local");
+      await navigateTo(checkoutTarget, "local");
       await loadLocalChanges();
       setNotice(t.checkoutCompleted);
     } catch (err) {
@@ -723,7 +723,6 @@ export default function App() {
     checkoutTarget,
     loadLocalChanges,
     navigateTo,
-    path,
     t,
   ]);
 

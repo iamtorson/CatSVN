@@ -986,7 +986,7 @@ fn run_svn_auth(credentials: &Credentials, args: &[&str]) -> Result<Vec<u8>, Str
     let (command_args, password) = authenticated_args(credentials, args);
     let stdin_required = password.is_some();
 
-    let mut child = Command::new(svn_binary())
+    let mut child = svn_command()
         .args(&command_args)
         .stdin(if stdin_required {
             Stdio::piped()
@@ -1026,6 +1026,16 @@ fn run_svn_auth(credentials: &Credentials, args: &[&str]) -> Result<Vec<u8>, Str
             stderr
         })
     }
+}
+
+fn svn_command() -> Command {
+    let mut command = Command::new(svn_binary());
+    // Finder-launched apps do not inherit a shell locale. Without a UTF-8
+    // locale, some Subversion builds mis-handle non-ASCII paths and can return
+    // success without updating the target working copy.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    command.env("LANG", "C.UTF-8").env("LC_ALL", "C.UTF-8");
+    command
 }
 
 fn authenticated_args(credentials: &Credentials, args: &[&str]) -> (Vec<String>, Option<String>) {
@@ -1797,6 +1807,25 @@ mod tests {
         }
 
         let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    fn svn_commands_force_a_utf8_locale() {
+        let command = svn_command();
+        let environment = command
+            .get_envs()
+            .map(|(key, value)| (key, value.unwrap_or_default()))
+            .collect::<HashMap<_, _>>();
+
+        assert_eq!(
+            environment.get(std::ffi::OsStr::new("LANG")),
+            Some(&std::ffi::OsStr::new("C.UTF-8"))
+        );
+        assert_eq!(
+            environment.get(std::ffi::OsStr::new("LC_ALL")),
+            Some(&std::ffi::OsStr::new("C.UTF-8"))
+        );
     }
 
     #[test]
